@@ -30,6 +30,7 @@ Not recommended unless you accept storage and performance trade-offs; background
  
 <img width="2548" height="262" alt="2026-11-04_16-43" src="https://github.com/user-attachments/assets/26cdad59-a860-4a73-ba49-e942b087b032" />
 
+---
 
 <img width="934" height="683" alt="2026-11-04_16-47" src="https://github.com/user-attachments/assets/e6fbae76-007a-48ac-90d6-6c839e64fd12" />
 
