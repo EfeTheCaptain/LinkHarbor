@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="color-scheme" content="dark">
+  <title>LinkHarbor</title>
+  <style>html{background:#1a1a2e}</style>
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <!-- Shown whenever zero shortcuts exist anywhere on the board -->
+  <div id="empty-state" hidden>
+    <h2 data-i18n="emptyTitle">No shortcuts yet</h2>
+    <p data-i18n="emptyIntro">Use the Edit button in the bottom-right corner to add sections and shortcuts. “Add Section” creates a group, and the + tile adds a shortcut to it.</p>
+    <button id="empty-edit-btn" type="button" data-i18n="emptyEditCta">Start editing</button>
+  </div>
+
+  <!-- Columns + dividers are built dynamically by render() -->
+  <div id="board"></div>
+
+  <div id="edit-controls">
+    <button id="add-section-btn" type="button" data-i18n="addSection">＋ Add Section</button>
+    <button id="export-btn" type="button" data-i18n="exportJson">Export JSON</button>
+    <button id="import-btn" type="button" data-i18n="importJson">Import JSON</button>
+    <input type="file" id="import-file" accept=".json,application/json">
+
+    <div class="edit-setting">
+      <label for="lang-select" id="lang-label" data-i18n="language">Language</label>
+      <select id="lang-select" data-i18n-aria-label="language" aria-label="Language">
+        <option value="en">EN</option>
+        <option value="tr">TR</option>
+      </select>
+    </div>
+
+    <div class="edit-setting">
+      <label for="divider-select" id="divider-label" data-i18n="dividers">Dividers</label>
+      <select id="divider-select" data-i18n-aria-label="dividers" aria-label="Dividers">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+    </div>
+
+    <div class="edit-setting">
+      <label for="theme-color-input" id="theme-label" data-i18n="theme">Theme</label>
+      <input type="color" id="theme-color-input" value="#ff6b6b" data-i18n-aria-label="theme" aria-label="Theme">
+    </div>
+
+    <div class="edit-setting">
+      <label for="bg-select" id="bg-label" data-i18n="background">Background</label>
+      <select id="bg-select" data-i18n-aria-label="background" aria-label="Background">
+        <option value="dark" data-i18n="bgDark">Dark</option>
+        <option value="midnight" data-i18n="bgMidnight">Midnight</option>
+        <option value="forest" data-i18n="bgForest">Forest</option>
+        <option value="wine" data-i18n="bgWine">Wine</option>
+        <option value="light" data-i18n="bgLight">Light</option>
+        <option value="sepia" data-i18n="bgSepia">Sepia</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Templates for dynamic DOM -->
+  <template id="tpl-section">
+    <div class="section">
+      <div class="section-header">
+        <div class="section-drag-handle" draggable="true" title="Drag to reorder section">≡</div>
+        <input class="section-title" type="text" placeholder="Section name">
+        <div class="section-actions">
+          <div class="section-size">
+            <button class="size-btn" type="button" title="Shrink cards">−</button>
+            <button class="size-btn" type="button" title="Enlarge cards">+</button>
+          </div>
+          <input class="edit-color section-color-input" type="color" value="#888888" title="Section color">
+          <button class="color-reset" type="button" title="Reset section color">↺</button>
+          <button class="section-delete" type="button" title="Delete section">✕</button>
+        </div>
+      </div>
+      <div class="grid"></div>
+    </div>
+  </template>
+
+  <template id="tpl-card">
+    <div class="card">
+      <div class="card-drag-handle" draggable="true" title="Drag to reorder shortcut">☰</div>
+      <div class="view-mode">
+        <div class="card-icon"><img alt="" loading="lazy"></div>
+        <div class="name"></div>
+      </div>
+      <div class="edit-inputs">
+        <input type="url" placeholder="Paste a URL">
+        <input type="text" placeholder="Title (auto)">
+      </div>
+      <button class="card-delete" type="button" title="Delete shortcut">✕</button>
+    </div>
+  </template>
+
+  <template id="tpl-add-tile">
+    <button class="add-card" type="button" title="Add shortcut">+</button>
+  </template>
+
+  <template id="tpl-add-form">
+    <div class="add-card form-mode">
+      <input type="url" placeholder="Paste a URL">
+      <input type="text" placeholder="Title (auto)">
+      <div class="add-card-btns">
+        <button class="add-card-confirm" type="button">Add</button>
+        <button class="add-card-cancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </template>
+
+  <div id="global-actions">
+    <button id="global-cancel-btn" type="button" data-i18n="cancel">Cancel</button>
+    <button id="global-edit-toggle" type="button">Edit</button>
+  </div>
+
+  <!-- "Are you sure?" dialog — main sections only, never shown for individual URLs -->
+  <div id="confirm-overlay" hidden>
+    <div id="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-message">
+      <p id="confirm-message"></p>
+      <div id="confirm-btns">
+        <button id="confirm-cancel" type="button" data-i18n="cancel">Cancel</button>
+        <button id="confirm-ok" type="button" data-i18n="confirmDelete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="newtab.js" defer></script>
+</body>
+</html>

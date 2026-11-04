@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "LinkHarbor",
+  "version": "1.4",
+  "description": "Minimal new-tab shortcut board with grouped icons, multi-column layout, per-card colors and language support.",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "permissions": ["storage", "favicon"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
