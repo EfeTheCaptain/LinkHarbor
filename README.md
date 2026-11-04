@@ -35,7 +35,7 @@ Not recommended unless you accept storage and performance trade-offs; background
 <img width="934" height="683" alt="2026-11-04_16-47" src="https://github.com/user-attachments/assets/e6fbae76-007a-48ac-90d6-6c839e64fd12" />
 
 
-## Backup disclaimer
+## Backup disclaimer ❗
 
 Before installing or updating, back up your current shortcuts using the extension's Export JSON feature. If you skip this, you may lose existing shortcuts. It is also recommended to export a fresh backup before every update.
 
