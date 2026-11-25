@@ -94,26 +94,18 @@
   const BLOCKED_HOST_SUFFIXES = [
     'localhost',
     'localhost.localdomain',
-    '127.0.0.1',
-    '::1',
-    '0.0.0.0',
     '.local',
     '.internal',
     '.test',
     '.example',
     '.invalid',
-    'chrome://',
-    'chrome-extension://',
-    'moz-extension://',
-    'edge://',
-    'brave://',
-    'about:',
-    'file://'
+    '.localhost'
   ];
 
   function isBlockedHost(hostname) {
-    const lower = hostname.toLowerCase();
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(lower)) {
+    const lower = hostname.toLowerCase().replace(/^\[(.+)\]$/, '$1');
+    const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(lower);
+    if (isIp) {
       const parts = lower.split('.').map(Number);
       if (parts[0] === 10) return true;
       if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
@@ -121,7 +113,10 @@
       if (parts[0] === 169 && parts[1] === 254) return true;
       if (parts[0] === 127) return true;
       if (parts[0] === 0) return true;
+      if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
+      if (parts[0] === 198 && (parts[1] === 18 || parts[1] === 19)) return true;
     }
+    if (lower === '::1' || lower === 'fe80::1') return true;
     return BLOCKED_HOST_SUFFIXES.some(suffix => {
       if (suffix.startsWith('.')) {
         return lower === suffix.slice(1) || lower.endsWith(suffix);
@@ -350,7 +345,15 @@
     if (persistDebounceTimer) clearTimeout(persistDebounceTimer);
     persistDebounceTimer = setTimeout(function () {
       persist(candidate);
+      persistDebounceTimer = 0;
     }, PERSIST_DEBOUNCE_MS);
+  }
+
+  function persistFlush() {
+    if (persistDebounceTimer) {
+      clearTimeout(persistDebounceTimer);
+      persistDebounceTimer = 0;
+    }
   }
 
   async function persist(candidate) {
@@ -473,8 +476,7 @@
   const FAVICON_CACHE = new Map();
 
   function faviconFor(url) {
-    const cached = FAVICON_CACHE.get(url);
-    if (cached) return cached;
+    if (FAVICON_CACHE.has(url)) return FAVICON_CACHE.get(url);
     let href = '';
     try {
       const u = new URL(url);
@@ -779,9 +781,6 @@
       if (editInputs) editInputs.remove();
       const deleteBtn = cardEl.querySelector('.card-delete');
       if (deleteBtn) deleteBtn.remove();
-      cardEl.href = card.url;
-      cardEl.target = '_self';
-      cardEl.rel = 'noopener noreferrer';
     }
 
     if (!editing) {
@@ -792,7 +791,6 @@
       });
       anchor.href = card.url;
       anchor.target = '_self';
-      anchor.rel = 'noopener noreferrer';
       while (cardEl.firstChild) anchor.appendChild(cardEl.firstChild);
       return anchor;
     }
@@ -1073,6 +1071,7 @@
 
   function cancelEditing(notify) {
     if (!editing) return;
+    persistFlush();
     editing = false;
     draft = null;
     addTarget = null;
@@ -1093,6 +1092,7 @@
 
   async function save() {
     if (!editing || saving) return;
+    persistFlush();
     saving = true;
     try {
       const model = draft;
@@ -1181,6 +1181,7 @@
   }
 
   async function onImportFile(event) {
+    persistFlush();
     const input = event.target;
     const file = input.files && input.files[0];
     input.value = '';
@@ -1293,11 +1294,13 @@
       let moved = false;
       if (event.key === 'ArrowUp' && idx > 0) {
         [cards[idx], cards[idx - 1]] = [cards[idx - 1], cards[idx]];
+        focusToken = { cardId: cardId };
         moved = true;
       } else if (event.key === 'ArrowDown' && idx < cards.length - 1) {
         [cards[idx], cards[idx + 1]] = [cards[idx + 1], cards[idx]];
+        focusToken = { cardId: cardId };
         moved = true;
-      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      } else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && event.shiftKey) {
         const sectionsWithCards = model.sections.filter(s => s.cards.length > 0);
         const secIdx = sectionsWithCards.findIndex(s => s.id === sectionId);
         if (secIdx >= 0) {
@@ -1323,9 +1326,13 @@
       let moved = false;
       if (event.key === 'ArrowUp' && idx > 0) {
         [sections[idx], sections[idx - 1]] = [sections[idx - 1], sections[idx]];
+        sections[idx].column = undefined;
+        sections[idx - 1].column = undefined;
         moved = true;
       } else if (event.key === 'ArrowDown' && idx < sections.length - 1) {
         [sections[idx], sections[idx + 1]] = [sections[idx + 1], sections[idx]];
+        sections[idx].column = undefined;
+        sections[idx + 1].column = undefined;
         moved = true;
       }
       if (moved) {
@@ -1352,6 +1359,7 @@
     document.addEventListener('keydown', handleReorderKeys);
     document.addEventListener('dragend', clearDrag);
     window.addEventListener('beforeunload', function (event) {
+      persistFlush();
       if (editing && draft && JSON.stringify(draft) !== JSON.stringify(state)) {
         event.preventDefault();
         event.returnValue = '';

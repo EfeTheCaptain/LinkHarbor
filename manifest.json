@@ -6,7 +6,7 @@
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "favicon"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'"
   },

@@ -27,26 +27,18 @@ function validBg(value) {
 const BLOCKED_HOST_SUFFIXES = [
   'localhost',
   'localhost.localdomain',
-  '127.0.0.1',
-  '::1',
-  '0.0.0.0',
   '.local',
   '.internal',
   '.test',
   '.example',
   '.invalid',
-  'chrome://',
-  'chrome-extension://',
-  'moz-extension://',
-  'edge://',
-  'brave://',
-  'about:',
-  'file://'
+  '.localhost'
 ];
 
 function isBlockedHost(hostname) {
-  const lower = hostname.toLowerCase();
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(lower)) {
+  const lower = hostname.toLowerCase().replace(/^\[(.+)\]$/, '$1');
+  const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(lower);
+  if (isIp) {
     const parts = lower.split('.').map(Number);
     if (parts[0] === 10) return true;
     if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
@@ -54,7 +46,10 @@ function isBlockedHost(hostname) {
     if (parts[0] === 169 && parts[1] === 254) return true;
     if (parts[0] === 127) return true;
     if (parts[0] === 0) return true;
+    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
+    if (parts[0] === 198 && (parts[1] === 18 || parts[1] === 19)) return true;
   }
+  if (lower === '::1' || lower === 'fe80::1') return true;
   return BLOCKED_HOST_SUFFIXES.some(suffix => {
     if (suffix.startsWith('.')) {
       return lower === suffix.slice(1) || lower.endsWith(suffix);
@@ -456,6 +451,15 @@ describe('isBlockedHost', () => {
     assert.ok(isBlockedHost('127.0.0.1'));
     assert.ok(isBlockedHost('169.254.1.1'));
     assert.ok(isBlockedHost('0.0.0.0'));
+    assert.ok(isBlockedHost('100.64.0.1'));
+    assert.ok(isBlockedHost('100.127.255.255'));
+    assert.ok(isBlockedHost('198.18.0.1'));
+    assert.ok(isBlockedHost('198.19.255.255'));
+  });
+
+  test('blocks IPv6 loopback/link-local', () => {
+    assert.ok(isBlockedHost('::1'));
+    assert.ok(isBlockedHost('fe80::1'));
   });
 
   test('allows public IPs', () => {
@@ -469,6 +473,7 @@ describe('isBlockedHost', () => {
     assert.ok(isBlockedHost('my.local'));
     assert.ok(isBlockedHost('my.internal'));
     assert.ok(isBlockedHost('test.example'));
+    assert.ok(isBlockedHost('my.localhost'));
   });
 
   test('allows normal hostnames', () => {
