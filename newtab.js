@@ -91,6 +91,45 @@
     return ['dark', 'midnight', 'forest', 'wine', 'light', 'sepia'].indexOf(value) >= 0 ? value : 'dark';
   }
 
+  const BLOCKED_HOST_SUFFIXES = [
+    'localhost',
+    'localhost.localdomain',
+    '127.0.0.1',
+    '::1',
+    '0.0.0.0',
+    '.local',
+    '.internal',
+    '.test',
+    '.example',
+    '.invalid',
+    'chrome://',
+    'chrome-extension://',
+    'moz-extension://',
+    'edge://',
+    'brave://',
+    'about:',
+    'file://'
+  ];
+
+  function isBlockedHost(hostname) {
+    const lower = hostname.toLowerCase();
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(lower)) {
+      const parts = lower.split('.').map(Number);
+      if (parts[0] === 10) return true;
+      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+      if (parts[0] === 192 && parts[1] === 168) return true;
+      if (parts[0] === 169 && parts[1] === 254) return true;
+      if (parts[0] === 127) return true;
+      if (parts[0] === 0) return true;
+    }
+    return BLOCKED_HOST_SUFFIXES.some(suffix => {
+      if (suffix.startsWith('.')) {
+        return lower === suffix.slice(1) || lower.endsWith(suffix);
+      }
+      return lower === suffix || lower.endsWith('.' + suffix);
+    });
+  }
+
   function normalizeUrl(raw) {
     let value = String(raw == null ? '' : raw).trim();
     if (!value) return '';
@@ -103,6 +142,7 @@
       if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
       if (!url.hostname) return '';
       if (!/^[a-z0-9.-]+$/i.test(url.hostname) || !/[a-z0-9]/i.test(url.hostname)) return '';
+      if (isBlockedHost(url.hostname)) return '';
       return url.href;
     } catch (e) {
       return '';
@@ -303,6 +343,16 @@
     });
   }
 
+  let persistDebounceTimer = 0;
+  const PERSIST_DEBOUNCE_MS = 300;
+
+  function persistDebounced(candidate) {
+    if (persistDebounceTimer) clearTimeout(persistDebounceTimer);
+    persistDebounceTimer = setTimeout(function () {
+      persist(candidate);
+    }, PERSIST_DEBOUNCE_MS);
+  }
+
   async function persist(candidate) {
     try {
       await storageSet(STORAGE_KEY, candidate);
@@ -420,13 +470,20 @@
   }
 
   // --- Icons ---
+  const FAVICON_CACHE = new Map();
+
   function faviconFor(url) {
+    const cached = FAVICON_CACHE.get(url);
+    if (cached) return cached;
+    let href = '';
     try {
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
-        return chrome.runtime.getURL('/_favicon/?pageUrl=' + encodeURIComponent(url) + '&size=32');
+      const u = new URL(url);
+      if (u.protocol === 'http:' || u.protocol === 'https:') {
+        href = 'chrome://favicon/size/32@1x/' + u.origin;
       }
     } catch (e) { /* ignore */ }
-    return '';
+    FAVICON_CACHE.set(url, href);
+    return href;
   }
 
   function buildIcon(card) {
@@ -454,7 +511,12 @@
   }
 
   // --- Render ---
+  const assignmentCache = new Map();
+
   function computeAssignments(sections, columnsCount) {
+    const key = sections.map(s => s.column ?? -1).join(',') + '|' + columnsCount;
+    const cached = assignmentCache.get(key);
+    if (cached) return cached;
     const assignments = new Array(sections.length);
     const counts = new Array(columnsCount).fill(0);
     sections.forEach(function (section, index) {
@@ -472,6 +534,8 @@
       assignments[index] = best;
       counts[best] += 1;
     });
+    if (assignmentCache.size > 50) assignmentCache.clear();
+    assignmentCache.set(key, assignments);
     return assignments;
   }
 
@@ -1089,7 +1153,7 @@
     else return;
     applySettings(model);
     if (key === 'lang' || key === 'dividers') render();
-    if (!editing) persist(sanitizeState(model));
+    if (!editing) persistDebounced(sanitizeState(model));
   }
 
   // --- Import / export ---
@@ -1209,6 +1273,69 @@
     if (editing) { event.preventDefault(); requestCancel(); }
   }
 
+  function handleReorderKeys(event) {
+    if (!editing || !event.altKey) return;
+    const active = document.activeElement;
+    if (!active) return;
+    const cardEl = active.closest('[data-card-id]');
+    const sectionEl = active.closest('.section');
+    const model = data();
+
+    if (cardEl) {
+      const cardId = cardEl.dataset.cardId;
+      const sectionId = cardEl.dataset.sectionId;
+      const section = model.sections.find(s => s.id === sectionId);
+      if (!section) return;
+      const cards = section.cards;
+      const idx = cards.findIndex(c => c.id === cardId);
+      if (idx < 0) return;
+
+      let moved = false;
+      if (event.key === 'ArrowUp' && idx > 0) {
+        [cards[idx], cards[idx - 1]] = [cards[idx - 1], cards[idx]];
+        moved = true;
+      } else if (event.key === 'ArrowDown' && idx < cards.length - 1) {
+        [cards[idx], cards[idx + 1]] = [cards[idx + 1], cards[idx]];
+        moved = true;
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        const sectionsWithCards = model.sections.filter(s => s.cards.length > 0);
+        const secIdx = sectionsWithCards.findIndex(s => s.id === sectionId);
+        if (secIdx >= 0) {
+          const targetSecIdx = event.key === 'ArrowLeft' ? secIdx - 1 : secIdx + 1;
+          if (targetSecIdx >= 0 && targetSecIdx < sectionsWithCards.length) {
+            const targetSection = sectionsWithCards[targetSecIdx];
+            const card = cards.splice(idx, 1)[0];
+            targetSection.cards.push(card);
+            focusToken = { cardId: card.id, sectionId: targetSection.id };
+            moved = true;
+          }
+        }
+      }
+      if (moved) {
+        event.preventDefault();
+        render();
+      }
+    } else if (sectionEl && active.classList.contains('section-title')) {
+      const sectionId = sectionEl.dataset.sectionId;
+      const sections = model.sections;
+      const idx = sections.findIndex(s => s.id === sectionId);
+      if (idx < 0) return;
+      let moved = false;
+      if (event.key === 'ArrowUp' && idx > 0) {
+        [sections[idx], sections[idx - 1]] = [sections[idx - 1], sections[idx]];
+        moved = true;
+      } else if (event.key === 'ArrowDown' && idx < sections.length - 1) {
+        [sections[idx], sections[idx + 1]] = [sections[idx + 1], sections[idx]];
+        moved = true;
+      }
+      if (moved) {
+        event.preventDefault();
+        focusToken = { sectionId };
+        render();
+      }
+    }
+  }
+
   function bindHandlers() {
     els.emptyEditBtn.addEventListener('click', startEditing);
     els.globalEditToggle.addEventListener('click', function () { if (editing) save(); else startEditing(); });
@@ -1222,6 +1349,7 @@
     els.dividerSelect.addEventListener('change', function (event) { onSetting('dividers', event.target.value); });
     els.themeColorInput.addEventListener('input', function (event) { onSetting('themeColor', event.target.value); });
     document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', handleReorderKeys);
     document.addEventListener('dragend', clearDrag);
     window.addEventListener('beforeunload', function (event) {
       if (editing && draft && JSON.stringify(draft) !== JSON.stringify(state)) {
