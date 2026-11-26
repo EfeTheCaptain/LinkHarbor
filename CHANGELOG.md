@@ -11,12 +11,12 @@ All notable changes to the LinkHarbor extension.
 - v1.5: Clicking a shortcut opens in the same tab (`target="_self"`) — replaces the new-tab page
 
 **Favicon loading**
-- v1.4: Used `chrome://favicon/size/32@1x/` (blocked in Chrome, worked in Brave only)
-- v1.5: Reverted to `chrome.runtime.getURL('/_favicon/...')` with `favicon` permission — works in both Brave and Chrome
+- v1.4: Used `chrome.runtime.getURL('/_favicon/...')` with `favicon` permission — works in both Brave and Chrome
+- v1.5: No change (an intermediate experiment with `chrome://favicon/` was reverted)
 
 **Local network addresses (192.168.x)**
-- v1.4: Blocked by URL security blocklist (could not add local servers)
-- v1.5: Allowed — 192.168.x removed from blocklist; 10.x, 172.16-31.x, 127.x, 169.254.x, 100.64-127.x, 198.18-19.x still blocked
+- v1.4: Allowed (no URL blocklist existed)
+- v1.5: Still allowed — a new blocklist was added in v1.5 but 192.168.x is explicitly permitted; 10.x, 172.16-31.x, 127.x, 169.254.x, 100.64-127.x, 198.18-19.x are blocked
 
 **Security: Content Security Policy**
 - v1.4: No CSP (default unsafe-inline allowed)
