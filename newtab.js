@@ -339,13 +339,17 @@
   }
 
   let persistDebounceTimer = 0;
+  let pendingPersist = null;
   const PERSIST_DEBOUNCE_MS = 300;
 
   function persistDebounced(candidate) {
+    pendingPersist = candidate;
     if (persistDebounceTimer) clearTimeout(persistDebounceTimer);
     persistDebounceTimer = setTimeout(function () {
-      persist(candidate);
       persistDebounceTimer = 0;
+      var v = pendingPersist;
+      pendingPersist = null;
+      persist(v);
     }, PERSIST_DEBOUNCE_MS);
   }
 
@@ -353,6 +357,11 @@
     if (persistDebounceTimer) {
       clearTimeout(persistDebounceTimer);
       persistDebounceTimer = 0;
+    }
+    if (pendingPersist) {
+      var v = pendingPersist;
+      pendingPersist = null;
+      persist(v);
     }
   }
 
@@ -500,6 +509,7 @@
       img.alt = '';
       img.width = 32;
       img.height = 32;
+      img.loading = 'lazy';
       img.referrerPolicy = 'no-referrer';
       img.addEventListener('error', function () {
         img.remove();
