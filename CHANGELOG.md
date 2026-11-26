@@ -1,6 +1,41 @@
 # Changelog
 
-All notable changes to the My Shortcuts extension.
+All notable changes to the LinkHarbor extension.
+
+## [1.5] - 2026-11-26
+
+### Added
+- **Drag sections across column dividers**: In edit mode, drag a section (by the ≡ handle) onto a divider line between columns. Drop on the left or right half to move the section to that column. Visual feedback shows active drop target.
+- **Keyboard reorder (accessibility)**: In edit mode, hold Alt + Arrow keys to reorder without mouse:
+  - Alt+Up/Down — move card up/down within section
+  - Alt+Shift+Left/Right — move card to previous/next section
+  - Alt+Up/Down on section title — move section up/down
+- **Content Security Policy**: Manifest V3 compliant CSP (`script-src 'self'; object-src 'none; style-src 'self' 'unsafe-inline'`).
+- **URL security blocklist**: Blocks localhost, private IPs (10.x, 172.16-31.x, 127.x, 169.254.x, 100.64-127.x, 198.18-19.x), IPv6 loopback/link-local, and reserved hostnames (.local, .internal, .test, .example, .invalid, .localhost). 192.168.x allowed for local network services.
+- **Debounced storage writes**: Settings changes (theme, background, dividers, language) batch into a single write 300ms after last change.
+- **Favicon caching**: Favicon URLs computed once and reused across re-renders.
+- **Column assignment memoization**: Layout calculation cached (50-entry LRU).
+- **Unit tests**: 29 tests covering URL validation, blocklist, state sanitization, column assignment, and core utilities.
+
+### Fixed
+- **Favicon icons not loading**: Reverted to `chrome.runtime.getURL('/_favicon/...')` with `favicon` permission (works in Brave and Chrome).
+- **192.168.x addresses blocked**: Removed from blocklist for local network convenience.
+- **Debounced write loss on tab close**: Pending writes now flush on `beforeunload`, save, cancel, and import.
+- **Keyboard reorder focus loss**: Focus token preserved on card up/down moves.
+- **Dead favicon cache entries**: Negative results now cached to prevent repeated parsing.
+- **Divider drag-drop now triggers column "hop"**: Sections can move across columns via divider drop zones.
+
+### Changed
+- Links open in same tab (`target="_self"`) instead of new tab.
+- Section reorder via keyboard clears pinned columns for auto-rebalancing.
+- Removed dead blocklist entries (chrome://, about:, file://, etc. — unreachable after protocol check).
+
+### Files
+- `manifest.json` — version 1.5, CSP, favicon permission
+- `newtab.js` — all logic changes above
+- `newtab.css` — divider drop target styling
+- `tests/utils.test.js` — unit test suite
+- `AUDIT.md` — codebase audit report
 
 ## [1.3] - 2026-11-01
 
