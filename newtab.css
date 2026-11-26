@@ -177,9 +177,15 @@ body.edit-mode .card { background: var(--card-bg); }
 
 /* Card drag & drop (desktop-only edit mode) */
 .card.dragging, .section.dragging { opacity: 0.3; }
-.grid.drop-target, .section.drop-target {
+.grid.drop-target, .section.drop-target, .column-divider.drop-target {
   outline: 2px dashed var(--info);
   outline-offset: -2px;
+}
+.column-divider.drop-target {
+  background: rgba(108, 92, 231, 0.15);
+  width: 6px;
+  margin-left: -2px;
+  margin-right: -2px;
 }
 .card.drop-before::before,
 .card.drop-after::after {

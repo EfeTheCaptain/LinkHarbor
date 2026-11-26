@@ -42,7 +42,7 @@ function isBlockedHost(hostname) {
     const parts = lower.split('.').map(Number);
     if (parts[0] === 10) return true;
     if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-    if (parts[0] === 192 && parts[1] === 168) return true;
+    // 192.168.x.x allowed for local network services
     if (parts[0] === 169 && parts[1] === 254) return true;
     if (parts[0] === 127) return true;
     if (parts[0] === 0) return true;
@@ -297,11 +297,15 @@ describe('URL normalization', () => {
   test('normalizeUrl rejects blocked hosts', () => {
     assert.strictEqual(normalizeUrl('http://localhost'), '');
     assert.strictEqual(normalizeUrl('http://127.0.0.1'), '');
-    assert.strictEqual(normalizeUrl('http://192.168.1.1'), '');
     assert.strictEqual(normalizeUrl('http://10.0.0.1'), '');
     assert.strictEqual(normalizeUrl('http://172.16.0.1'), '');
     assert.strictEqual(normalizeUrl('http://my.local'), '');
     assert.strictEqual(normalizeUrl('http://my.internal'), '');
+  });
+
+  test('normalizeUrl allows local network 192.168.x', () => {
+    assert.strictEqual(normalizeUrl('http://192.168.1.1'), 'http://192.168.1.1/');
+    assert.strictEqual(normalizeUrl('http://192.168.0.100'), 'http://192.168.0.100/');
   });
 
   test('normalizeUrl allows public IPs', () => {
@@ -443,9 +447,8 @@ describe('defaultState', () => {
 });
 
 describe('isBlockedHost', () => {
-  test('blocks private IP ranges', () => {
+  test('blocks private IP ranges (except 192.168.x)', () => {
     assert.ok(isBlockedHost('10.0.0.1'));
-    assert.ok(isBlockedHost('192.168.1.1'));
     assert.ok(isBlockedHost('172.16.0.1'));
     assert.ok(isBlockedHost('172.31.255.255'));
     assert.ok(isBlockedHost('127.0.0.1'));
@@ -455,6 +458,12 @@ describe('isBlockedHost', () => {
     assert.ok(isBlockedHost('100.127.255.255'));
     assert.ok(isBlockedHost('198.18.0.1'));
     assert.ok(isBlockedHost('198.19.255.255'));
+  });
+
+  test('allows 192.168.x local network', () => {
+    assert.ok(!isBlockedHost('192.168.1.1'));
+    assert.ok(!isBlockedHost('192.168.0.100'));
+    assert.ok(!isBlockedHost('192.168.255.255'));
   });
 
   test('blocks IPv6 loopback/link-local', () => {

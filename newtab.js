@@ -109,7 +109,7 @@
       const parts = lower.split('.').map(Number);
       if (parts[0] === 10) return true;
       if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-      if (parts[0] === 192 && parts[1] === 168) return true;
+      // 192.168.x.x allowed for local network services
       if (parts[0] === 169 && parts[1] === 254) return true;
       if (parts[0] === 127) return true;
       if (parts[0] === 0) return true;
@@ -481,7 +481,9 @@
     try {
       const u = new URL(url);
       if (u.protocol === 'http:' || u.protocol === 'https:') {
-        href = 'chrome://favicon/size/32@1x/' + u.origin;
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+          href = chrome.runtime.getURL('/_favicon/?pageUrl=' + encodeURIComponent(url) + '&size=32');
+        }
       }
     } catch (e) { /* ignore */ }
     FAVICON_CACHE.set(url, href);
@@ -560,6 +562,7 @@
     if (!isEmpty) {
       const columnsCount = clampInt(model.dividers + 1, 2, 5, 2);
       const columnEls = [];
+      const dividerEls = [];
       for (let i = 0; i < columnsCount; i += 1) {
         const column = document.createElement('div');
         column.className = 'column';
@@ -568,8 +571,16 @@
         if (i < columnsCount - 1) {
           const divider = document.createElement('div');
           divider.className = 'column-divider';
+          divider.dataset.leftColumn = String(i);
+          divider.dataset.rightColumn = String(i + 1);
+          dividerEls.push(divider);
           els.board.appendChild(divider);
         }
+      }
+      if (editing) {
+        dividerEls.forEach(function (divider) {
+          setupDividerDropZone(divider);
+        });
       }
       const assignments = computeAssignments(model.sections, columnsCount);
       model.sections.forEach(function (section, sectionIndex) {
@@ -997,6 +1008,30 @@
     });
   }
 
+  function setupDividerDropZone(divider) {
+    divider.addEventListener('dragover', function (event) {
+      if (!dragging || dragging.kind !== 'section') return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      divider.classList.add('drop-target');
+    });
+    divider.addEventListener('dragleave', function (event) {
+      if (event.relatedTarget && !divider.contains(event.relatedTarget)) {
+        divider.classList.remove('drop-target');
+      }
+    });
+    divider.addEventListener('drop', function (event) {
+      if (!dragging || dragging.kind !== 'section') return;
+      event.preventDefault();
+      const leftCol = parseInt(divider.dataset.leftColumn, 10);
+      const rightCol = parseInt(divider.dataset.rightColumn, 10);
+      const rect = divider.getBoundingClientRect();
+      const targetColumn = event.clientX < rect.left + rect.width / 2 ? leftCol : rightCol;
+      moveSectionToId(dragging.sectionId, null, false, targetColumn);
+      clearDrag();
+    });
+  }
+
   function moveCard(fromSectionId, cardId, toSectionId, targetCardId, placeBefore) {
     const model = data();
     const source = model.sections.find(function (item) { return item.id === fromSectionId; });
@@ -1023,9 +1058,14 @@
     if (from < 0) return;
     const section = model.sections.splice(from, 1)[0];
     if (Number.isInteger(targetColumn) && targetColumn >= 0) section.column = targetColumn;
-    let target = model.sections.findIndex(function (item) { return item.id === targetId; });
-    if (target < 0) target = model.sections.length;
-    if (!placeBefore) target += 1;
+    let target;
+    if (targetId) {
+      target = model.sections.findIndex(function (item) { return item.id === targetId; });
+      if (target < 0) target = model.sections.length;
+      if (!placeBefore) target += 1;
+    } else {
+      target = model.sections.length;
+    }
     model.sections.splice(target, 0, section);
     focusToken = { sectionId: section.id };
     render();
