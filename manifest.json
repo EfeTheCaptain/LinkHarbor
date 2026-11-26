@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkHarbor",
-  "version": "1.5",
+  "version": "1.5.1",
   "description": "Minimal new-tab shortcut board with grouped icons, multi-column layout, per-card colors and language support.",
   "chrome_url_overrides": {
     "newtab": "newtab.html"

@@ -2,6 +2,18 @@
 
 All notable changes to the LinkHarbor extension.
 
+## [1.5.1] - 2026-11-26
+
+### v1.5 → v1.5.1 Diff
+
+**Favicon loading**
+- v1.5: Favicons decoded eagerly on render, including off-screen cards
+- v1.5.1: Favicons use `loading="lazy"` — only visible cards decode (minor memory win on large boards)
+
+**Debounced setting writes (theme/background/dividers/language)**
+- v1.5: Closing the tab within 300ms of a setting change silently dropped the pending write (flush cleared the timer without writing)
+- v1.5.1: The pending value is kept and written on flush (tab close, save, cancel, import)
+
 ## [1.5] - 2026-11-26
 
 ### v1.4 → v1.5 Diff
